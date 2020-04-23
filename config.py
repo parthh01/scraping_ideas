@@ -32,9 +32,15 @@ def get_sp_tickers():
         tickers.append(row.findAll('td')[2].text)
     return tickers 
 
-
-    
-
+rand = {'AAPL': {
+        'buy': 100,
+        'sell': 200,
+        'shares': 20
+    },'AMZN': {
+    'buy': 150,
+    'sell': 250,
+    'shares': 1
+}}
 
 
 russell_3000 = ['A',

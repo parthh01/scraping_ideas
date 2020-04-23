@@ -4,7 +4,7 @@ from statsmodels.regression.linear_model import OLS
 from statsmodels.api import add_constant
 from hurst import compute_Hc
 from numpy import * 
-
+import pandas as pd 
 
 lookback = 100 # number of days for dataset
 # tickers = get_sp_tickers()
@@ -12,9 +12,9 @@ lookback = 100 # number of days for dataset
 def is_series_adf_stationary(series): #adf evaluates whether or not time series cna be called stationary with 90% certainty
     adf_result = adfuller(series,maxlag=1)
     if adf_result[0] <= adf_result[4]['10%']:
-        print(adf_result)
-        return 'null hypothesis rejectable, with pval = {pval} '.format(pval=str(adf_result[1])) # series is mean reverting according to adf test 
-    return None # series is not 
+        # return 'null hypothesis rejectable, with pval = {pval} '.format(pval=str(adf_result[1])) # series is mean reverting according to adf test 
+        return True
+    return False # series is not 
 
 
 def evaluate_adf_stationarity(tickers):
@@ -65,14 +65,17 @@ def compute_half_life(series): #moving average for the mean should be determined
     ylag = add_constant(ylag) 
     model = OLS(deltay,ylag)
     beta = model.fit().params[1] # regression_coefficient
-    return -log(2)/beta # unit will be the barset time period (days)
+    return -log(2)/beta # unit will be the barset time period (days), has to be > 1 day 
 
-    
-asset = api.polygon.historic_agg_v2('CPB',1,'day',_from=datetime.date.today()-datetime.timedelta(days =lookback),to=datetime.date.today()).df
-print('the hurst is {hurst}'.format(hurst = compute_hurst(log(asset[['close']])))) # the notation for calling price series is really odd
+asset = api.polygon.historic_agg_v2('CPB',1,'day',_from=datetime.date.today()-datetime.timedelta(days =1),to=datetime.date.today()+datetime.timedelta(days =1)).df
+
+
+#print('the hurst is {hurst}'.format(hurst = compute_hurst(log(asset[['close']])))) # the notation for calling price series is really odd
 # hurst is strongly reverting closer to 0, 0.5 = no significance, and strongly trending closer to 1  
-print(variance_ratio_test(log(asset['close'])))
-print(compute_half_life(asset['close']))
+#print(variance_ratio_test(log(asset['close'])))
+#print(compute_half_life(asset['close']))
+
+
 
 # so, step 1 is evaluate adf to determine stationarity, 
 # Step 2 is evaluate hurst exponent to determine strength of mean reversion/trending behaviour 0 < H < 0.25 ideal range ** needs to be proven 
