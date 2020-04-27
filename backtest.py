@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from pandas.plotting import register_matplotlib_converters
 from mean_reversion import * 
 
-register_matplotlib_converters() # stupid pandas thing, just have to do it 
+register_matplotlib_converters() # pandas thing, just have to do it 
 
 def plot_series_returns(series,label='SPY returns',starting_balance = 10000):
     starting_shares = math.floor(starting_balance/series.iloc[0])
@@ -19,7 +19,7 @@ def plot_series_returns(series,label='SPY returns',starting_balance = 10000):
 
 # every day, loop through universe evaluate each test, buy/sell accordingly. 
 # for active positions if limit price is between daily high/low position is sold
-sp_tickers = get_sp_tickers()
+#sp_tickers = get_sp_tickers()
 
 def run_mean_reversion_backtest(backtest_period=365,lookback=100,universe = sp_tickers,start_balance=10000,max_halflife=7):
     start_day = datetime.date.today() - datetime.timedelta(days=1)
@@ -71,4 +71,4 @@ def run_mean_reversion_backtest(backtest_period=365,lookback=100,universe = sp_t
     print(transaction_log)
     return current_balance,open_positions
                                 
-run_mean_reversion_backtest(backtest_period=21)
+#run_mean_reversion_backtest(backtest_period=21)

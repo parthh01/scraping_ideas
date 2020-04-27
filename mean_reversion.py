@@ -8,10 +8,6 @@ import pandas as pd
 
 seterr(divide = 'ignore') # for log divide by 0 numpy issue 
 
-lookback = 100 # number of days for dataset
-tickers = get_sp_tickers()
-
-
 def is_series_adf_stationary(series): #adf evaluates whether or not time series cna be called stationary with 90% certainty
     adf_result = adfuller(series,maxlag=1)
     if adf_result[0] <= adf_result[4]['10%']: # confidence interval needs to be optimized betwwen 10% or 5% 
@@ -33,14 +29,14 @@ def evaluate_test(tickers,test,lookback=100):
 
 
 ### statistical tests for mean reversion #####
-def hurst_exponent_test(ts): # hurst evaluates how strong the mean reversion is 
+def hurst_exponent_test(ts,hurst_ub = 0.40): # hurst evaluates how strong the mean reversion is 
     # calculate standard deviation of differenced series using various lags
     lags = range(2, 20)
     tau = [sqrt(std(subtract(ts[lag:], ts[:-lag]))) for lag in lags]
     # calculate Hurst as slope of log-log plot
     m = polyfit(log(lags), log(tau), 1)
     hurst = m[0]*2.0
-    if (0 <= hurst <= 0.45) or math.isnan(hurst) : # range UB needs to be optimized, also check frequency of nan
+    if (0 <= hurst <= hurst_ub) or math.isnan(hurst) : # range UB needs to be optimized, also check frequency of nan
         return True
     return False 
     # return hurst
@@ -64,16 +60,19 @@ def variance_ratio_test(ts, lag = 2): # source: https://breakingdownfinance.com/
         return True 
     return False
 
-def half_life_test(series): #moving average for the mean should be determined as some multiple of this beta 
-    ylag = series.shift(1).dropna()
-    deltay = (series - ylag).dropna()
-    ylag = add_constant(ylag) 
+def half_life_test(series,halflifelimit = 10): #moving average for the mean should be determined as some multiple of this beta 
+    ylag = asarray(series.shift(1).dropna())
+    deltay = asarray((series - ylag).dropna())
+    ylag = asarray(add_constant(ylag))
     model = OLS(deltay,ylag)
     beta = model.fit().params[1] # regression_coefficient
-    halflife = -log(2)/beta # unit will be the barset time period (days), has to be > 1 day 
-    if 1 <= int(round(halflife)) <= 7: # range upper bound needs to be optimized 
+    halflife = -log(2)/beta # unit will be the barset time period (days), has to be > 1 timeperiod of dataset  
+    if 1 <= int(round(halflife)) <= halflifelimit: # range upper bound needs to be optimized 
         return True 
     return  False
+
+#lookback = 100 # number of days for dataset
+#tickers = get_sp_tickers()
 
 
 
