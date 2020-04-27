@@ -6,41 +6,44 @@ from hurst import compute_Hc
 from numpy import * 
 import pandas as pd 
 
+seterr(divide = 'ignore') # for log divide by 0 numpy issue 
+
 lookback = 100 # number of days for dataset
-# tickers = get_sp_tickers()
+tickers = get_sp_tickers()
+
 
 def is_series_adf_stationary(series): #adf evaluates whether or not time series cna be called stationary with 90% certainty
     adf_result = adfuller(series,maxlag=1)
-    if adf_result[0] <= adf_result[4]['10%']:
+    if adf_result[0] <= adf_result[4]['10%']: # confidence interval needs to be optimized betwwen 10% or 5% 
         # return 'null hypothesis rejectable, with pval = {pval} '.format(pval=str(adf_result[1])) # series is mean reverting according to adf test 
         return True
     return False # series is not 
 
 
-def evaluate_adf_stationarity(tickers):
+def evaluate_test(tickers,test,lookback=100):
     print('evaluating...')
     failed_tickers = []
     for asset in tickers: 
-        try: 
-            price_series = api.polygon.historic_agg_v2(asset,1,'day',_from=datetime.date.today()-datetime.timedelta(days =lookback),to=datetime.date.today()).df
-            adf_test = is_series_adf_stationary(price_series['close'])
-            if adf_test:
-                print(asset + ' : ' + adf_test)
-        except: 
-            failed_tickers.append(asset)
+        price_series = api.polygon.historic_agg_v2(asset,1,'day',_from=datetime.date.today()-datetime.timedelta(days =lookback),to=datetime.date.today()).df
+        result = test(price_series['close'])
+        if result:
+            print(asset + ' : ' + str(result))
     print('done')
     return failed_tickers
 
 
 ### statistical tests for mean reversion #####
-def compute_hurst(ts): # hurst evaluates how strong the mean reversion is 
+def hurst_exponent_test(ts): # hurst evaluates how strong the mean reversion is 
     # calculate standard deviation of differenced series using various lags
     lags = range(2, 20)
     tau = [sqrt(std(subtract(ts[lag:], ts[:-lag]))) for lag in lags]
     # calculate Hurst as slope of log-log plot
     m = polyfit(log(lags), log(tau), 1)
     hurst = m[0]*2.0
-    return hurst
+    if (0 <= hurst <= 0.45) or math.isnan(hurst) : # range UB needs to be optimized, also check frequency of nan
+        return True
+    return False 
+    # return hurst
 
 def variance_ratio_test(ts, lag = 2): # source: https://breakingdownfinance.com/finance-topics/finance-basics/variance-ratio-test/
     """
@@ -57,23 +60,29 @@ def variance_ratio_test(ts, lag = 2): # source: https://breakingdownfinance.com/
     t=sum(square(ts[lag:n]-ts[:n-lag]-lag*mu))/m
     vratio = t/(lag*b) # this is converted to a standardized test statistic by the following: 
     t_statistic = (sqrt(2*n)*(vratio-1))/sqrt(2) # this value should be between [-1.96,1.96] to reject null hypothesis with 5% significance
-    return t_statistic
+    if -1.96 <= t_statistic <= 1.96:
+        return True 
+    return False
 
-def compute_half_life(series): #moving average for the mean should be determined as some multiple of this beta 
+def half_life_test(series): #moving average for the mean should be determined as some multiple of this beta 
     ylag = series.shift(1).dropna()
     deltay = (series - ylag).dropna()
     ylag = add_constant(ylag) 
     model = OLS(deltay,ylag)
     beta = model.fit().params[1] # regression_coefficient
-    return -log(2)/beta # unit will be the barset time period (days), has to be > 1 day 
+    halflife = -log(2)/beta # unit will be the barset time period (days), has to be > 1 day 
+    if 1 <= int(round(halflife)) <= 7: # range upper bound needs to be optimized 
+        return True 
+    return  False
 
-asset = api.polygon.historic_agg_v2('CPB',1,'day',_from=datetime.date.today()-datetime.timedelta(days =1),to=datetime.date.today()+datetime.timedelta(days =1)).df
 
 
 #print('the hurst is {hurst}'.format(hurst = compute_hurst(log(asset[['close']])))) # the notation for calling price series is really odd
 # hurst is strongly reverting closer to 0, 0.5 = no significance, and strongly trending closer to 1  
 #print(variance_ratio_test(log(asset['close'])))
 #print(compute_half_life(asset['close']))
+
+
 
 
 
