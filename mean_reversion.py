@@ -10,7 +10,7 @@ seterr(divide = 'ignore') # for log divide by 0 numpy issue
 
 def is_series_adf_stationary(series): #adf evaluates whether or not time series cna be called stationary with 90% certainty
     adf_result = adfuller(series,maxlag=1)
-    if adf_result[0] <= adf_result[4]['10%']: # confidence interval needs to be optimized betwwen 10% or 5% 
+    if adf_result[0] <= adf_result[4]['5%']: # confidence interval needs to be optimized betwwen 10% or 5% 
         # return 'null hypothesis rejectable, with pval = {pval} '.format(pval=str(adf_result[1])) # series is mean reverting according to adf test 
         return True
     return False # series is not 
@@ -61,9 +61,9 @@ def variance_ratio_test(ts, lag = 2): # source: https://breakingdownfinance.com/
     return False
 
 def half_life_test(series,halflifelimit = 10): #moving average for the mean should be determined as some multiple of this beta 
-    ylag = asarray(series.shift(1).dropna())
-    deltay = asarray((series - ylag).dropna())
-    ylag = asarray(add_constant(ylag))
+    ylag = series.shift(1).dropna()
+    deltay = (series - ylag).dropna()
+    ylag = add_constant(ylag)
     model = OLS(deltay,ylag)
     beta = model.fit().params[1] # regression_coefficient
     halflife = -log(2)/beta # unit will be the barset time period (days), has to be > 1 timeperiod of dataset  
@@ -75,15 +75,10 @@ def half_life_test(series,halflifelimit = 10): #moving average for the mean shou
 #tickers = get_sp_tickers()
 
 
-
 #print('the hurst is {hurst}'.format(hurst = compute_hurst(log(asset[['close']])))) # the notation for calling price series is really odd
 # hurst is strongly reverting closer to 0, 0.5 = no significance, and strongly trending closer to 1  
 #print(variance_ratio_test(log(asset['close'])))
 #print(compute_half_life(asset['close']))
-
-
-
-
 
 # so, step 1 is evaluate adf to determine stationarity, 
 # Step 2 is evaluate hurst exponent to determine strength of mean reversion/trending behaviour 0 < H < 0.25 ideal range ** needs to be proven 

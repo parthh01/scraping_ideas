@@ -21,7 +21,7 @@ def plot_series_returns(series,label='SPY returns',starting_balance = 10000):
 # for active positions if limit price is between daily high/low position is sold
 #sp_tickers = get_sp_tickers()
 
-def run_mean_reversion_backtest(backtest_period=365,lookback=100,universe = sp_tickers,start_balance=10000,max_halflife=7):
+def run_mean_reversion_backtest(universe,backtest_period=365,lookback=100,start_balance=10000,max_halflife=7):
     start_day = datetime.date.today() - datetime.timedelta(days=1)
     end_day = start_day - datetime.timedelta(days=backtest_period)
     spy = api.polygon.historic_agg_v2('SPY',1,'day',_from=end_day,to=start_day).df

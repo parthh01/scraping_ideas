@@ -15,7 +15,7 @@ def get_universe():
 
 #OPTIMIZABLE VARIABLES: 
 lookback = 100 
-open_positions = [] # schema:- {security: {sellprice:int, shares: int, side: 'buy' or 'sell'}}
+open_positions = []
 maxhalflife = 10
 max_hurst = 0.40
 new_pos_multiplier = 0.1 
@@ -23,7 +23,6 @@ new_pos_multiplier = 0.1
 universe = get_universe()
 today = datetime.date.today()
 dlimit = today - datetime.timedelta(days=3) # so enough data is received even on a monday
-
 
 while api.get_clock().is_open:
     for security in universe:
@@ -33,10 +32,10 @@ while api.get_clock().is_open:
             if half_life_test(priceseries['close'],halflifelimit=maxhalflife):
                 sma = priceseries['close'].rolling(maxhalflife).mean()
                 sma_sd = sma.std()
-                is_potential_short = (current_price > (sma.iloc[-1] + sma_sd)) # what if margin is not significant? 
-                is_potential_long = current_price < (sma.iloc[-1] - sma_sd) 
+                is_potential_short = (current_price >= (sma.iloc[-1] + sma_sd)) # what if margin is not significant? 
+                is_potential_long = current_price <= (sma.iloc[-1] - sma_sd) 
                 if is_series_adf_stationary(priceseries['close']) and hurst_exponent_test(priceseries['close']) and variance_ratio_test(priceseries['close']) and (is_potential_short or is_potential_long):
-                    funds = new_pos_multiplier*api.get_account().cash
+                    funds = new_pos_multiplier*float(api.get_account().cash)
                     shares = math.floor(funds/current_price)
                     if shares >= 1: 
                         side = ('sell' if is_potential_short else 'buy')
@@ -44,15 +43,19 @@ while api.get_clock().is_open:
                             symbol = security,
                             side = side, 
                             qty = shares,
+                            type = 'market',
                             time_in_force = 'gtc',
-                            order_class = 'bracket',
+                            order_class = 'bracket', # not sure if this will work for sell, maybe oto will work better 
                             take_profit = dict(
-                                limit_price = sma.iloc[-1]
+                                limit_price = ((sma.iloc[-1] - 0.25*sma_sd) if side == 'buy' else (sma.iloc[-1]+0.25*sma_sd))
                                 ),
                             stop_loss = dict(
-                                stop_price =  math.floor(sma.iloc[-1]/2), # written so essentially will never come into effect
-                                limit_price = math.floor(sma.iloc[-1]/2) - 0.01 # maybe can be changed so its actually used 
+                                stop_price =  (max(math.floor(sma.iloc[-1]/2),0.02) if side == 'buy' else math.ceil(sma.iloc[-1]*2)), # written so essentially will never come into effect
+                                limit_price = (max(math.floor(sma.iloc[-1]/2) - 0.01,0.01) if side == 'buy' else math.ceil(sma.iloc[-1]*2)+0.01) # maybe can be changed so its actually used 
                                 )
                         )
-                        open_positions.append(security)
+    open_positions = [asset.symbol for asset in api.list_positions()]
+        
+
+    
     
